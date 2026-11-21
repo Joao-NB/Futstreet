@@ -28,15 +28,21 @@ async function main(){
   const register=async(index)=>{const response=await fetch(base+'/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'QA '+index,email:`qa${index}@test.dev`,password:'quadra123',location:'Olinda, PE',gender:'Outro'})});assert.equal(response.status,201);return response.json()};
   await viewport(1440,960);await cdp('Page.navigate',{url:base});await delay(1200);await evaluate('document.fonts.ready');await screenshot('login-desktop.png');await viewport(1280,570);await screenshot('login-short.png');await viewport(1440,960);
   assert.equal(await evaluate("document.querySelector('.auth-generated-art img').naturalWidth>0"),true);
-  await evaluate("setAuthTab('register');(()=>{const form=document.querySelector('#register-form');for(const[name,value]of Object.entries({name:'João QA',age:'21',city:'Olinda'}))form.elements.namedItem(name).value=value;document.querySelector('#next-register').click()})()");
-  assert.equal(await evaluate("document.querySelector('[data-step=\"1\"]').classList.contains('active')"),true,'UF precisa ser obrigatória');
+  await viewport(390,844);await cdp('Page.navigate',{url:base+'/?cadastro=1'});await delay(800);
+  assert.equal(await evaluate("document.querySelector('#register-form').classList.contains('active')"),true);
+  assert.equal(await evaluate("document.querySelector('#register-form details').open"),false);
+  assert.equal(await evaluate("document.querySelector('#register-form [type=submit]').getBoundingClientRect().bottom < innerHeight"),true,'Botão do cadastro visível no mobile');
+  assert.equal(await evaluate('document.documentElement.scrollWidth>innerWidth'),false);
+  await screenshot('register-mobile.png');
+  await evaluate("document.querySelector('#register-form').requestSubmit()");
+  assert.equal(await evaluate('document.activeElement.name'),'name');
   assert.equal(await evaluate("Boolean(document.querySelector('[name=height]'))"),false);
-  await evaluate("document.querySelector('[name=state]').value='PE';document.querySelector('#next-register').click()");
-  assert.equal(await evaluate("document.querySelector('[data-step=\"2\"]').classList.contains('active')"),true);
-  assert.deepEqual(await evaluate("Array.from(document.querySelector('[name=gender]').options).map(o=>o.value).filter(Boolean)"),['Mulher','Homem','Outro']);
-  await evaluate("(()=>{const form=document.querySelector('#register-form');for(const[name,value]of Object.entries({position:'Fixo',gender:'Outro',email:'qa0@test.dev',password:'quadra123'}))form.elements.namedItem(name).value=value;form.requestSubmit()})()");await delay(800);
+  await evaluate("(()=>{const form=document.querySelector('#register-form');for(const[name,value]of Object.entries({name:'João QA',email:'qa0@test.dev',password:'quadra123'}))form.elements.namedItem(name).value=value;form.querySelector('.toggle-password').click()})()");
+  assert.equal(await evaluate("document.querySelector('#register-password').type"),'text');
+  await evaluate("document.querySelector('#register-form .toggle-password').click();document.querySelector('#register-form').requestSubmit()");await delay(800);
   assert.equal(await evaluate("document.querySelector('#auth-screen').hidden"),true);
   assert.equal(await evaluate("document.querySelector('#profile-summary').textContent.includes('Olinda, PE')"),true);
+  await viewport(1440,960);
   await screenshot('home-desktop.png');await evaluate("showPage('perfil');document.querySelector('#edit-profile').click()");assert.equal(await evaluate("document.activeElement.id"),'profile-city');await evaluate("showPage('inicio')");
   await evaluate("document.querySelector('#inicio [data-mode=\"2v2\"]').click()");await delay(300);assert.equal(await evaluate("document.querySelector('#search-title').textContent"),'Buscando 2 × 2');assert.equal(await evaluate("document.querySelector('#queue-needed').textContent"),'4');await screenshot('queue-2v2.png');
   await evaluate("document.querySelector('#train-while-waiting').click()");await delay(400);assert.equal(await evaluate("document.querySelector('#treinos').classList.contains('active')"),true);assert.equal(await evaluate("document.querySelector('#training-queue').hidden"),false);await screenshot('training-queue-desktop.png');
@@ -59,7 +65,16 @@ async function main(){
   await cdp('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});await evaluate("showPage('treinos')");await delay(100);assert.equal(await evaluate("getComputedStyle(document.querySelector('.running .workout-art img')).animationName"),'none');
   await evaluate("document.querySelector('#logout-button').click();document.querySelector('#auth-screen').scrollTo(0,0);document.querySelector('#toast').classList.remove('show')");await delay(100);await screenshot('login-mobile.png');assert.equal(await evaluate('document.documentElement.scrollWidth>innerWidth'),false);
   await viewport(320,740);await screenshot('login-mobile-320.png');assert.equal(await evaluate('document.documentElement.scrollWidth>innerWidth'),false,'Login 320px');
-  assert.deepEqual(errors,[]);console.log('PASS navegador: artes, cidade/UF, cadastro, modos, fila em Treinos, heartbeat, retomada, 2 × 2 real, busca rápida 5 × 5, GPS fora de PE e responsividade.');console.log('Capturas em tmp/futstreet-v2-qa');
+  await evaluate("document.querySelector('#guest-button').click()");await delay(800);
+  assert.equal(await evaluate("document.querySelector('#auth-screen').hidden"),true);
+  const firstGuest=await evaluate("api('/api/me').then(result=>result.user)");
+  assert.equal(firstGuest.isGuest,true);
+  await evaluate("document.querySelector('#logout-button').click();document.querySelector('#guest-button').click()");await delay(800);
+  const anotherGuest=await evaluate("api('/api/me').then(result=>result.user)");
+  assert.equal(anotherGuest.isGuest,true);
+  assert.notEqual(anotherGuest.id,firstGuest.id);
+  assert.notEqual(anotherGuest.name,firstGuest.name);
+  assert.deepEqual(errors,[]);console.log('PASS navegador: artes, cadastro simplificado, convidados, modos, fila em Treinos, heartbeat, retomada, 2 × 2 real, busca rápida 5 × 5, GPS fora de PE e responsividade.');console.log('Capturas em tmp/futstreet-v2-qa');
  }finally{ws?.close();chrome.kill();server.kill()}
 }
 main().catch(error=>{console.error(error);process.exitCode=1});

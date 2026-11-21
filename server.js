@@ -88,6 +88,33 @@ function json(res,status,value){res.writeHead(status,{'Content-Type':'applicatio
 function body(req){return new Promise((resolve,reject)=>{let data='';req.on('data',chunk=>{data+=chunk;if(data.length>1e6)reject(new Error('Payload grande'))});req.on('end',()=>{try{resolve(data?JSON.parse(data):{})}catch{reject(new Error('JSON inválido'))}})})}
 function secure(password,salt=crypto.randomBytes(16).toString('hex')){return {salt,hash:crypto.scryptSync(password,salt,64).toString('hex')}}
 function safe(user){const {passwordHash,salt,...result}=user;return {...result,position:futsalPosition(result.position)}}
+
+const guestNames = ['Caneta', 'Drible', 'Falcão', 'Finta', 'Raio', 'Trovão'];
+
+function newPlayer(profile) {
+  return {
+    id: crypto.randomUUID(),
+    location: 'Olinda, PE',
+    position: 'Ala',
+    gender: 'Outro',
+    availability: [],
+    level: 0,
+    skill: 0,
+    xp: 0,
+    semesterPoints: 0,
+    role: 'player',
+    createdAt: new Date().toISOString(),
+    ...profile
+  };
+}
+
+async function sendAuthSession(res, db, user, status) {
+  const token = crypto.randomBytes(24).toString('hex');
+  db.sessions = db.sessions.filter(session => session.userId !== user.id);
+  db.sessions.push({token, userId: user.id});
+  await writeDb(db);
+  return json(res, status, {token, user: safe(user)});
+}
 function currentUser(req,db){const token=(req.headers.authorization||'').replace(/^Bearer /,'');const session=db.sessions.find(item=>item.token===token);return session?db.users.find(user=>user.id===session.userId):null}
 function requireUser(req,res,db){const user=currentUser(req,db);if(!user)json(res,401,{error:'Faça login para continuar.'});return user}
 function km(a,b,c,d){const r=v=>v*Math.PI/180;const x=Math.sin(r(c-a)/2)**2+Math.cos(r(a))*Math.cos(r(c))*Math.sin(r(d-b)/2)**2;return 6371*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x))}
@@ -117,6 +144,13 @@ function queueRegionalRefresh(lat,lon,radius){
 async function api(req,res,url){
   const db=await readDb(),method=req.method;
   if(method==='GET'&&url.pathname==='/api/health')return json(res,200,{status:'ok',service:'futstreet',database:store.kind,persistent:store.persistent,time:new Date().toISOString()});
+  if(method==='POST'&&url.pathname==='/api/auth/guest'){
+    const name = guestNames[crypto.randomInt(guestNames.length)];
+    const suffix = crypto.randomBytes(4).toString('hex').toUpperCase();
+    const user = newPlayer({name: `${name}-${suffix}`, isGuest: true});
+    db.users.push(user);
+    return sendAuthSession(res, db, user, 201);
+  }
   if(method==='POST'&&url.pathname==='/api/auth/register'){
     const input=await body(req),email=String(input.email||'').trim().toLowerCase(),place=parseLocation(input.location);
     if(!place)return json(res,400,{error:'Informe sua cidade e estado. Ex.: Olinda, PE.'});
@@ -124,8 +158,7 @@ async function api(req,res,url){
     if(!email.includes('@')||String(input.password||'').length<6||!String(input.name||'').trim())return json(res,400,{error:'Preencha nome, e-mail válido e senha com 6 caracteres.'});
     if(db.users.some(user=>user.email===email))return json(res,409,{error:'Este e-mail já está cadastrado.'});
     const pass=secure(input.password);
-    const user={
-      id:crypto.randomUUID(),
+    const user=newPlayer({
       name:String(input.name).trim(),
       email,
       passwordHash:pass.hash,
@@ -134,25 +167,15 @@ async function api(req,res,url){
       location:place.location,
       position:input.position||'Ala',
       gender:input.gender||'Outro',
-      level:0,
-      availability:Array.isArray(input.availability)?input.availability:[],
-      skill:0,
-      xp:0,
-      semesterPoints:0,
-      role:'player',
-      createdAt:new Date().toISOString()
-    };
-    if(!user.location)return json(res,400,{error:'Informe sua cidade no perfil.'});
-    const token=crypto.randomBytes(24).toString('hex');
+      availability:Array.isArray(input.availability)?input.availability:[]
+    });
     db.users.push(user);
-    db.sessions.push({token,userId:user.id});
-    await writeDb(db);
-    return json(res,201,{token,user:safe(user)});
+    return sendAuthSession(res, db, user, 201);
   }
   if(method==='POST'&&url.pathname==='/api/auth/login'){
-    const input=await body(req),user=db.users.find(item=>item.email===String(input.email||'').trim().toLowerCase());
+    const input=await body(req),user=db.users.find(item=>!item.isGuest&&item.email===String(input.email||'').trim().toLowerCase());
     if(!user||secure(String(input.password||''),user.salt).hash!==user.passwordHash)return json(res,401,{error:'E-mail ou senha incorretos.'});
-    const token=crypto.randomBytes(24).toString('hex');db.sessions=db.sessions.filter(item=>item.userId!==user.id);db.sessions.push({token,userId:user.id});await writeDb(db);return json(res,200,{token,user:safe(user)});
+    return sendAuthSession(res, db, user, 200);
   }
   if(method==='GET'&&url.pathname==='/api/me'){const user=requireUser(req,res,db);if(user){const ranking=db.users.filter(item=>item.role!=='admin'&&cityOf(item.location)===cityOf(user.location)&&(item.semesterPoints||0)>0).sort((a,b)=>(b.semesterPoints||0)-(a.semesterPoints||0));return json(res,200,{user:safe(user),stats:{rank:ranking.findIndex(item=>item.id===user.id)+1,matches:(db.matches||[]).filter(match=>match.completed?.includes(user.id)).length,trainings:(db.trainings||[]).filter(item=>item.userId===user.id).length}})}return}
   if(method==='PATCH'&&url.pathname==='/api/me'){const user=requireUser(req,res,db);if(!user)return;const input=await body(req),place=parseLocation(input.location);if(!place)return json(res,400,{error:'Informe sua cidade e estado. Ex.: Olinda, PE.'});user.location=place.location;await writeDb(db);return json(res,200,{user:safe(user)})}

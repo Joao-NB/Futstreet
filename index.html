@@ -27,7 +27,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="node_modules/leaflet/dist/leaflet.css">
   <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="futstreet.css?v=editorial-4">
+  <link rel="stylesheet" href="futstreet.css?v=auth-2">
 </head>
 <body>
   <div class="noise" aria-hidden="true"></div>
@@ -38,30 +38,42 @@
       <div class="auth-generated-art" aria-hidden="true"><img src="/assets/visuals/login.webp?v=editorial-4" alt="" width="941" height="1672" fetchpriority="high"></div><div class="auth-edition">OLINDA, PE / CULTURA DE QUADRA <span>EST. 2026</span></div>
     </div>
     <div class="auth-panel"><div class="auth-box">
-      <button class="auth-back" id="auth-back" hidden aria-label="Voltar">←</button>
-      <div class="auth-intro"><p class="eyebrow">BEM-VINDO À QUADRA</p><h2>Entre no jogo</h2><p>Acesse sua conta ou crie seu perfil de atleta.</p></div>
-      <div class="auth-tabs"><button class="active" data-auth-tab="login">Entrar</button><button data-auth-tab="register">Criar conta</button></div>
+      <div class="auth-intro"><h2 id="auth-title">Entre no jogo</h2><p id="auth-description">Acesse sua conta do Futstreet.</p></div>
+      <div class="auth-tabs" role="group" aria-label="Acesso ao Futstreet">
+        <button type="button" class="active" data-auth-tab="login" aria-pressed="true" aria-controls="login-form">Entrar</button>
+        <button type="button" data-auth-tab="register" aria-pressed="false" aria-controls="register-form">Criar conta</button>
+      </div>
       <form class="auth-form active" id="login-form" novalidate>
-        <label>E-mail<input type="email" name="email" placeholder="voce@email.com" autocomplete="email" required><span class="field-error">Informe um e-mail válido.</span></label>
-        <label>Senha<div class="password-field"><input type="password" name="password" placeholder="Sua senha" autocomplete="current-password" minlength="6" required><button type="button" class="toggle-password" aria-label="Exibir senha">◉</button></div><span class="field-error">Use pelo menos 6 caracteres.</span></label>
-        <button class="primary-cta auth-submit" type="submit">Entrar na quadra <span>→</span></button><p class="demo-hint">Entre com uma conta cadastrada ou crie seu perfil.</p>
+        <label>E-mail<input type="email" name="email" placeholder="voce@email.com" autocomplete="username" autocapitalize="none" aria-describedby="login-email-error" required><span class="field-error" id="login-email-error">Informe um e-mail válido.</span></label>
+        <div class="auth-password">
+          <label for="login-password">Senha</label>
+          <div class="password-field"><input id="login-password" type="password" name="password" placeholder="Sua senha" autocomplete="current-password" aria-describedby="login-password-error" required><button type="button" class="toggle-password" aria-label="Mostrar senha">Mostrar</button></div>
+          <span class="field-error" id="login-password-error">Informe sua senha.</span>
+        </div>
+        <p class="auth-error" role="alert" data-auth-error></p>
+        <button class="primary-cta auth-submit" type="submit"><span>Entrar na quadra</span><span aria-hidden="true">→</span></button>
       </form>
       <form class="auth-form" id="register-form" novalidate>
-        <div class="register-progress"><i class="active"></i><i></i><span>Etapa <b id="step-number">1</b> de 2</span></div>
-        <div class="register-step active" data-step="1">
-          <label>Nome completo<input name="name" placeholder="Como podemos chamar você?" required><span class="field-error">Informe seu nome.</span></label>
-          <label>Idade<input type="number" name="age" placeholder="18" min="16" max="80" required><span class="field-error">Idade mínima: 16 anos.</span></label>
-          <div class="field-pair location-fields"><label>Cidade<input name="city" placeholder="Olinda" minlength="2" maxlength="80" autocomplete="address-level2" required><span class="field-error">Informe sua cidade.</span></label><label>Estado<select name="state" autocomplete="address-level1" required><option value="">UF</option><option value="AC">AC · Acre</option><option value="AL">AL · Alagoas</option><option value="AP">AP · Amapá</option><option value="AM">AM · Amazonas</option><option value="BA">BA · Bahia</option><option value="CE">CE · Ceará</option><option value="DF">DF · Distrito Federal</option><option value="ES">ES · Espírito Santo</option><option value="GO">GO · Goiás</option><option value="MA">MA · Maranhão</option><option value="MT">MT · Mato Grosso</option><option value="MS">MS · Mato Grosso do Sul</option><option value="MG">MG · Minas Gerais</option><option value="PA">PA · Pará</option><option value="PB">PB · Paraíba</option><option value="PR">PR · Paraná</option><option value="PE">PE · Pernambuco</option><option value="PI">PI · Piauí</option><option value="RJ">RJ · Rio de Janeiro</option><option value="RN">RN · Rio Grande do Norte</option><option value="RS">RS · Rio Grande do Sul</option><option value="RO">RO · Rondônia</option><option value="RR">RR · Roraima</option><option value="SC">SC · Santa Catarina</option><option value="SP">SP · São Paulo</option><option value="SE">SE · Sergipe</option><option value="TO">TO · Tocantins</option></select><span class="field-error">Escolha o estado.</span></label></div><button class="primary-cta auth-submit" type="button" id="next-register">Continuar <span>→</span></button>
+        <label>Nome<input name="name" placeholder="Como você quer ser chamado?" autocomplete="name" aria-describedby="register-name-error" required><span class="field-error" id="register-name-error">Informe seu nome.</span></label>
+        <label>E-mail<input type="email" name="email" placeholder="voce@email.com" autocomplete="username" autocapitalize="none" aria-describedby="register-email-error" required><span class="field-error" id="register-email-error">Informe um e-mail válido.</span></label>
+        <div class="auth-password">
+          <label for="register-password">Senha</label>
+          <div class="password-field"><input id="register-password" type="password" name="password" placeholder="No mínimo 6 caracteres" autocomplete="new-password" minlength="6" aria-describedby="register-password-error" required><button type="button" class="toggle-password" aria-label="Mostrar senha">Mostrar</button></div>
+          <span class="field-error" id="register-password-error">Use pelo menos 6 caracteres.</span>
         </div>
-        <div class="register-step" data-step="2">
-          <div class="field-pair"><label>Posição<select name="position" required><option value="">Selecione</option><option>Goleiro</option><option>Fixo</option><option>Ala</option><option>Pivô</option></select><span class="field-error">Escolha sua posição.</span></label><label>Gênero<select name="gender" required><option value="">Selecione</option><option>Mulher</option><option>Homem</option><option>Outro</option></select><span class="field-error">Selecione uma opção.</span></label></div>
-          <p class="register-level-note">Você começa no nível 0. Jogos e treinos fazem seu perfil evoluir.</p>
-          <fieldset class="day-picker"><legend>Dias disponíveis</legend><label><input type="checkbox" checked>Ter</label><label><input type="checkbox">Qua</label><label><input type="checkbox" checked>Qui</label><label><input type="checkbox" checked>Sáb</label><label><input type="checkbox">Dom</label></fieldset>
-          <label>E-mail<input type="email" name="email" placeholder="voce@email.com" required><span class="field-error">Informe um e-mail válido.</span></label>
-          <label>Crie uma senha<div class="password-field"><input type="password" name="password" placeholder="Mínimo de 6 caracteres" minlength="6" required><button type="button" class="toggle-password">◉</button></div><span class="field-error">Use pelo menos 6 caracteres.</span></label>
-          <button class="primary-cta auth-submit" type="submit">Criar meu perfil <span>→</span></button>
-        </div>
+        <details class="auth-profile-options">
+          <summary><span>Dados do perfil</span><small id="register-region">Olinda, PE</small></summary>
+          <div class="auth-profile-fields">
+            <div class="field-pair location-fields"><label>Cidade<input name="city" value="Olinda" minlength="2" maxlength="80" autocomplete="address-level2" aria-describedby="register-city-error" required><span class="field-error" id="register-city-error">Informe uma cidade válida.</span></label><label>Estado<select name="state" autocomplete="address-level1" required><option>AC</option><option>AL</option><option>AP</option><option>AM</option><option>BA</option><option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option><option>MT</option><option>MS</option><option>MG</option><option>PA</option><option>PB</option><option>PR</option><option selected>PE</option><option>PI</option><option>RJ</option><option>RN</option><option>RS</option><option>RO</option><option>RR</option><option>SC</option><option>SP</option><option>SE</option><option>TO</option></select></label></div>
+            <div class="field-pair"><label>Posição<select name="position"><option value="">Selecione</option><option>Goleiro</option><option>Fixo</option><option>Ala</option><option>Pivô</option></select></label><label>Idade<input type="number" name="age" min="16" max="80" aria-describedby="register-age-error"><span class="field-error" id="register-age-error">Informe uma idade entre 16 e 80 anos.</span></label></div>
+            <label>Gênero<select name="gender"><option value="">Selecione</option><option>Mulher</option><option>Homem</option><option>Outro</option></select></label>
+            <fieldset class="day-picker"><legend>Dias disponíveis</legend><label><input type="checkbox" name="availability" value="Ter">Ter</label><label><input type="checkbox" name="availability" value="Qua">Qua</label><label><input type="checkbox" name="availability" value="Qui">Qui</label><label><input type="checkbox" name="availability" value="Sáb">Sáb</label><label><input type="checkbox" name="availability" value="Dom">Dom</label></fieldset>
+          </div>
+        </details>
+        <p class="auth-error" role="alert" data-auth-error></p>
+        <button class="primary-cta auth-submit" type="submit"><span>Criar conta e entrar</span><span aria-hidden="true">→</span></button>
       </form>
+      <button class="secondary-button auth-guest" id="guest-button" type="button"><span>Entrar como convidado</span></button>
     </div></div>
   </section>
   <header class="topbar">
@@ -168,6 +180,6 @@
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="node_modules/leaflet/dist/leaflet.js"></script>
-  <script src="app.js?v=editorial-4"></script>
+  <script src="app.js?v=auth-2"></script>
 </body>
 </html>

@@ -21,7 +21,9 @@ let lastLocationUpdate = 0;
 const authScreen = document.querySelector('#auth-screen');
 const authTabs = [...document.querySelectorAll('[data-auth-tab]')];
 const authForms = [...document.querySelectorAll('.auth-form')];
-const registerSteps = [...document.querySelectorAll('.register-step')];
+const registerForm = document.querySelector('#register-form');
+const guestButton = document.querySelector('#guest-button');
+const authActions = [...authScreen.querySelectorAll('[data-auth-tab], [type="submit"], #guest-button')];
 // Keep existing logins when changing the brand. Database identifiers remain stable too.
 for (const key of ['token','session']) { const previous=localStorage.getItem('bastreet-'+key); if(previous&&!localStorage.getItem('futstreet-'+key))localStorage.setItem('futstreet-'+key,previous); localStorage.removeItem('bastreet-'+key); }
 const apiToken = () => localStorage.getItem('futstreet-token') || '';
@@ -40,23 +42,29 @@ async function api(path, options = {}) {
   return result;
 }
 
-function showRegisterStep(step) {
-  registerSteps.forEach(item => item.classList.toggle('active', item.dataset.step === String(step)));
-  document.querySelector('#step-number').textContent = step;
-  document.querySelectorAll('.register-progress i').forEach((item, index) => item.classList.toggle('active', index < step));
-  document.querySelector('#auth-back').hidden = step === 1;
-}
-
 function setAuthTab(tab) {
-  authTabs.forEach(button => button.classList.toggle('active', button.dataset.authTab === tab));
+  const registering = tab === 'register';
+  const previousEmail = document.querySelector('.auth-form.active [name="email"]').value;
+  authTabs.forEach(button => {
+    const active = button.dataset.authTab === tab;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
   authForms.forEach(form => form.classList.toggle('active', form.id === `${tab}-form`));
-  showRegisterStep(1);
+  const email = document.querySelector('.auth-form.active [name="email"]');
+  if (!email.value) email.value = previousEmail;
+  document.querySelector('#auth-title').textContent = registering ? 'Crie sua conta' : 'Entre no jogo';
+  document.querySelector('#auth-description').textContent = registering
+    ? 'Preencha os três campos para começar a jogar.' : 'Acesse sua conta do Futstreet.';
 }
 
-function validFields(container) {
-  const fields = [...container.querySelectorAll('input, select')];
-  fields.forEach(field => field.closest('label')?.classList.toggle('invalid', !field.checkValidity()));
-  return fields.every(field => field.checkValidity());
+function validateAuthField(field) {
+  if (field.name === 'name' || field.name === 'city') field.value = field.value.trim();
+  const invalid = !field.checkValidity() || (field.minLength > 0 && field.value.length < field.minLength);
+  field.closest('.auth-password, label')?.classList.toggle('invalid', invalid);
+  if (invalid) field.setAttribute('aria-invalid', 'true');
+  else field.removeAttribute('aria-invalid');
+  return !invalid;
 }
 
 function enterApp(message) {
@@ -68,29 +76,95 @@ function enterApp(message) {
 }
 
 authTabs.forEach(button => button.addEventListener('click', () => setAuthTab(button.dataset.authTab)));
-document.querySelector('#next-register').addEventListener('click', () => { if (validFields(document.querySelector('[data-step="1"]'))) showRegisterStep(2); });
-document.querySelector('#auth-back').addEventListener('click', () => showRegisterStep(1));
-document.querySelector('#login-form').addEventListener('submit', async event => {
-  event.preventDefault(); if (!validFields(event.currentTarget)) return;
-  const button = event.currentTarget.querySelector('[type="submit"]'); button.disabled = true; button.textContent = 'Entrando...';
-  try { const form = new FormData(event.currentTarget); const result = await api('/api/auth/login',{method:'POST',body:JSON.stringify({email:form.get('email'),password:form.get('password')})}); localStorage.setItem('futstreet-token',result.token); enterApp(`Bem-vindo, ${result.user.name}! ⚽`); applyUser(result.user); }
-  catch(error){ showToast(error.message); } finally { button.disabled=false; button.innerHTML='Entrar na quadra <span>→</span>'; }
+if (new URLSearchParams(location.search).has('cadastro')) setAuthTab('register');
+
+function updateRegisterRegion() {
+  const city = registerForm.elements.namedItem('city').value.trim();
+  const state = registerForm.elements.namedItem('state').value;
+  document.querySelector('#register-region').textContent = city ? `${city}, ${state}` : 'Informe a cidade';
+}
+
+async function submitAuth(form, button, action, payload) {
+  if (button.disabled || authScreen.classList.contains('leaving')) return;
+  const errorMessage = form.querySelector('[data-auth-error]');
+  const buttonLabel = button.firstElementChild;
+  const idleLabel = buttonLabel.textContent;
+  errorMessage.textContent = '';
+  authActions.forEach(control => control.disabled = true);
+  form.setAttribute('aria-busy', 'true');
+  buttonLabel.textContent = action === 'register' ? 'Criando conta…' : 'Entrando…';
+  try {
+    const result = await api(`/api/auth/${action}`, {method:'POST',body:JSON.stringify(payload)});
+    localStorage.setItem('futstreet-token', result.token);
+    form.elements.namedItem('password').value = '';
+    enterApp(action === 'register' ? 'Conta criada. Bora jogar!' : `Bem-vindo, ${result.user.name}!`);
+    applyUser(result.user);
+  } catch (error) {
+    errorMessage.textContent = error.message;
+  } finally {
+    form.removeAttribute('aria-busy');
+    authActions.forEach(control => control.disabled = false);
+    buttonLabel.textContent = idleLabel;
+  }
+}
+
+guestButton.addEventListener('click', () => {
+  const form = document.querySelector('.auth-form.active');
+  submitAuth(form, guestButton, 'guest', {});
 });
-document.querySelector('#register-form').addEventListener('submit', async event => {
-  event.preventDefault();
-  if (!validFields(document.querySelector('[data-step="1"]'))) { showRegisterStep(1); return; }
-  if (!validFields(document.querySelector('[data-step="2"]'))) return;
-  const button = event.currentTarget.querySelector('[type="submit"]');
-  if (button.disabled) return;
-  const buttonContent = button.innerHTML;
-  button.disabled = true; button.textContent = 'Criando conta...';
-  const form=new FormData(event.currentTarget),days=[...event.currentTarget.querySelectorAll('.day-picker input:checked')].map(item=>item.parentElement.textContent.trim());
-  const payload=Object.fromEntries(form.entries());payload.availability=days;payload.location=`${String(form.get('city')).trim()}, ${form.get('state')}`;delete payload.city;delete payload.state;
-  try { const result=await api('/api/auth/register',{method:'POST',body:JSON.stringify(payload)});localStorage.setItem('futstreet-token',result.token);enterApp('Conta criada e salva no servidor!');applyUser(result.user); }
-  catch(error){showToast(error.message)}
-  finally { button.disabled = false; button.innerHTML = buttonContent; }
-});
-document.querySelectorAll('.toggle-password').forEach(button => button.addEventListener('click', () => { const input = button.parentElement.querySelector('input'); input.type = input.type === 'password' ? 'text' : 'password'; button.textContent = input.type === 'password' ? '◉' : '◌'; }));
+
+for (const form of authForms) {
+  const errorMessage = form.querySelector('[data-auth-error]');
+  form.addEventListener('input', event => {
+    errorMessage.textContent = '';
+    const field = event.target;
+    if (field.hasAttribute('aria-invalid')) {
+      field.removeAttribute('aria-invalid');
+      field.closest('.auth-password, label')?.classList.remove('invalid');
+    }
+    if (field.name === 'city' || field.name === 'state') updateRegisterRegion();
+  });
+
+  form.addEventListener('submit', event => {
+    event.preventDefault();
+    const button = form.querySelector('[type="submit"]');
+    if (button.disabled) return;
+    errorMessage.textContent = '';
+    const invalidFields = [...form.querySelectorAll('input:not([type="checkbox"]), select')]
+      .filter(field => !validateAuthField(field));
+    if (invalidFields.length) {
+      const field = invalidFields[0];
+      const details = field.closest('details');
+      if (details) details.open = true;
+      field.focus();
+      return;
+    }
+
+    const registering = form === registerForm;
+    const fields = new FormData(form);
+    const payload = { email: fields.get('email'), password: fields.get('password') };
+    if (registering) {
+      Object.assign(payload, {
+        name: fields.get('name'),
+        location: `${fields.get('city')}, ${fields.get('state')}`,
+        age: fields.get('age'),
+        position: fields.get('position'),
+        gender: fields.get('gender'),
+        availability: fields.getAll('availability')
+      });
+    }
+
+    submitAuth(form, button, registering ? 'register' : 'login', payload);
+  });
+}
+
+document.querySelectorAll('.toggle-password').forEach(button => button.addEventListener('click', () => {
+  const input = button.parentElement.querySelector('input');
+  const showing = input.type === 'password';
+  input.type = showing ? 'text' : 'password';
+  button.textContent = showing ? 'Ocultar' : 'Mostrar';
+  button.setAttribute('aria-label', showing ? 'Ocultar senha' : 'Mostrar senha');
+}));
 document.querySelector('#logout-button').addEventListener('click', () => { if(searchingState&&!searchingState.hidden)api('/api/matchmaking/leave',{method:'POST'}).catch(()=>{});closeMatchmaking(false);localStorage.removeItem('futstreet-session'); localStorage.removeItem('futstreet-token'); authScreen.hidden = false; setAuthTab('login');clearInterval(workoutTimer);activeWorkout=null; });
 document.querySelector('#brand-home').addEventListener('click', event => { event.preventDefault(); showPage('inicio'); history.replaceState(null, '', '#inicio'); });
 if (apiToken()) { authScreen.hidden = true; api('/api/me').then(result=>applyUser(result.user,result.stats)).catch(()=>{localStorage.removeItem('futstreet-token');authScreen.hidden=false}); }

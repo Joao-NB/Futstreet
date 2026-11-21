@@ -31,7 +31,7 @@ Em produção, a variável `DATABASE_URL` ativa o PostgreSQL e torna persistente
 
 ## Autenticação
 
-O login e o cadastro usam uma API real, hash de senha com `scrypt` e tokens de sessão. O cadastro armazena nome, idade, cidade com UF, posição, gênero e dias disponíveis. Cidade e estado são obrigatórios em campos separados; a API também valida o formato e as 27 UFs. As opções de gênero são Mulher, Homem e Outro. Altura foi removida do cadastro e da apresentação do perfil; contas anteriores continuam preservadas. Novas contas começam no nível 0, sem pontos, partidas ou treinos. Expiração de sessões e recuperação de senha permanecem como evoluções posteriores.
+O login e o cadastro usam a API, hash de senha com `scrypt` e tokens de sessão. Para criar uma conta, preencha nome, e-mail e senha. O cadastro abre o jogo automaticamente. A opção **Entrar como convidado** cria um perfil com nome aleatório em um clique. O perfil pode ser usado enquanto a sessão estiver salva no navegador. O formulário usa Olinda, PE como localização inicial e permite trocar a cidade e preencher outros dados na seção Dados do perfil. Compartilhe `/?cadastro=1` para abrir diretamente a criação de conta. Novas contas começam no nível 0, sem pontos, partidas ou treinos.
 
 ## Regras de progressão do MVP
 
