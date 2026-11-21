@@ -27,7 +27,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="node_modules/leaflet/dist/leaflet.css">
   <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="futstreet.css?v=auth-2">
+  <link rel="stylesheet" href="futstreet.css?v=auth-3">
 </head>
 <body>
   <div class="noise" aria-hidden="true"></div>
@@ -38,7 +38,11 @@
       <div class="auth-generated-art" aria-hidden="true"><img src="/assets/visuals/login.webp?v=editorial-4" alt="" width="941" height="1672" fetchpriority="high"></div><div class="auth-edition">OLINDA, PE / CULTURA DE QUADRA <span>EST. 2026</span></div>
     </div>
     <div class="auth-panel"><div class="auth-box">
-      <div class="auth-intro"><h2 id="auth-title">Entre no jogo</h2><p id="auth-description">Acesse sua conta do Futstreet.</p></div>
+      <div class="auth-intro"><h2 id="auth-title">Entre no jogo</h2><p id="auth-description">Entre com sua conta ou teste como convidado.</p></div>
+      <div class="auth-resume" id="auth-resume" hidden>
+        <p role="status">A conexão caiu. Sua sessão continua salva neste navegador.</p>
+        <button class="secondary-button" type="button" id="auth-resume-button">Retomar acesso</button>
+      </div>
       <div class="auth-tabs" role="group" aria-label="Acesso ao Futstreet">
         <button type="button" class="active" data-auth-tab="login" aria-pressed="true" aria-controls="login-form">Entrar</button>
         <button type="button" data-auth-tab="register" aria-pressed="false" aria-controls="register-form">Criar conta</button>
@@ -180,6 +184,6 @@
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="node_modules/leaflet/dist/leaflet.js"></script>
-  <script src="app.js?v=auth-2"></script>
+  <script src="app.js?v=auth-3"></script>
 </body>
 </html>

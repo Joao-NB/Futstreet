@@ -430,6 +430,10 @@ html:has(.auth-screen:not([hidden])){overflow:hidden}
 
 .auth-intro h2{margin-bottom:8px}
 .auth-intro p{margin:0}
+.auth-resume{margin-top:16px;padding:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+.auth-resume[hidden]{display:none}
+.auth-resume p{flex:1 1 160px;margin:0;color:var(--white);font-size:12px;line-height:1.5}
+.auth-resume .secondary-button{min-height:44px;padding:8px 12px;border-color:var(--lime);color:var(--lime);font-size:12px}
 .auth-tabs{gap:4px;margin:24px 0 20px;padding:4px;border:1px solid var(--line);border-radius:12px;background:#0c1615}
 .auth-tabs button{min-height:44px;padding:8px;color:#aebeb7;border-radius:8px}
 .auth-tabs button.active{color:var(--ink);background:var(--lime)}
@@ -460,7 +464,7 @@ html:has(.auth-screen:not([hidden])){overflow:hidden}
 .auth-profile-fields{display:grid;gap:12px;padding:12px;border-top:1px solid var(--line)}
 .auth-profile-fields .field-pair{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
 .auth-profile-fields .day-picker{min-width:0;flex-wrap:wrap}
-.auth-profile-fields .day-picker label{min-height:36px}
+.auth-profile-fields .day-picker label{min-height:44px}
 
 @media(max-width:900px){
  .auth-screen{background:#101b1a;overscroll-behavior:contain}

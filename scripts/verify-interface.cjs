@@ -6,7 +6,7 @@ async function main(){
  fs.writeFileSync(path.join(data,'courts-cache.json'),JSON.stringify({sport:'futsal',updatedAt:new Date().toISOString(),center:{lat:-7.9938,lon:-34.8416},radius:30000,results:[{id:'qa-futsal-olinda',name:'Quadra futsal QA',area:'Olinda',lat:-7.9938,lon:-34.8416,access:'public',sport:'futsal',source:'osm'}]}));
  const chrome=spawn('C:/Program Files/Google/Chrome/Application/chrome.exe',['--headless=new','--disable-gpu','--no-first-run','--no-default-browser-check','--disable-background-networking',`--remote-debugging-port=${debugPort}`,`--user-data-dir=${userData}`,'about:blank'],{windowsHide:true,stdio:'ignore'});
  const server=spawn(process.execPath,['server.js'],{cwd:root,env:{...process.env,PORT:String(port),DATA_DIR:data,DATABASE_URL:'',SEED_DEMO:'false',ADMIN_PASSWORD:''},windowsHide:true,stdio:'ignore'});
- let ws;const errors=[],requests=[];
+ let ws,failProfileOnce=false;const errors=[],requests=[];
  try{
   let targets;for(let i=0;i<100;i++){try{targets=await(await fetch(`http://127.0.0.1:${debugPort}/json/list`)).json();if(targets.length)break}catch{}await delay(100)}
   assert.ok(targets?.length);ws=new WebSocket(targets.find(t=>t.type==='page').webSocketDebuggerUrl);await new Promise(resolve=>ws.addEventListener('open',resolve,{once:true}));let seq=0;const pending=new Map();
@@ -16,6 +16,13 @@ async function main(){
    if(message.method==='Network.requestWillBeSent')requests.push(message.params.request.url);
    if(message.method==='Fetch.requestPaused'){
      const paused=message.params;
+     if(new URL(paused.request.url).pathname==='/api/me'){
+       if(!failProfileOnce){cdp('Fetch.continueRequest',{requestId:paused.requestId}).catch(()=>{});return;}
+       failProfileOnce=false;
+       const body=Buffer.from(JSON.stringify({error:'Servidor indisponível no teste.'})).toString('base64');
+       cdp('Fetch.fulfillRequest',{requestId:paused.requestId,responseCode:503,responseHeaders:[{name:'Content-Type',value:'application/json'}],body}).catch(()=>{});
+       return;
+     }
      const body={courts:[{id:'qa-sp',name:'Quadra São Paulo QA',area:'São Paulo',lat:-23.5505,lon:-46.6333,surface:'Quadra poliesportiva',source:'osm',distance:0,players:0}],meta:{radius:8,live:true,osmResults:1,cache:false,refreshing:false}};
      cdp('Fetch.fulfillRequest',{requestId:paused.requestId,responseCode:200,responseHeaders:[{name:'Content-Type',value:'application/json'}],body:Buffer.from(JSON.stringify(body)).toString('base64')}).catch(()=>{});
    }
@@ -74,6 +81,16 @@ async function main(){
   assert.equal(anotherGuest.isGuest,true);
   assert.notEqual(anotherGuest.id,firstGuest.id);
   assert.notEqual(anotherGuest.name,firstGuest.name);
+  await cdp('Fetch.enable',{patterns:[{urlPattern:'*api/me',requestStage:'Request'}]});
+  failProfileOnce=true;
+  await cdp('Page.reload');
+  await delay(950);
+  assert.equal(await evaluate("document.querySelector('#auth-resume').hidden"),false);
+  assert.ok(await evaluate("localStorage.getItem('futstreet-token')"));
+  await evaluate("document.querySelector('#auth-resume-button').click()");
+  await delay(500);
+  assert.equal(await evaluate("document.querySelector('#auth-screen').hidden"),true);
+  assert.equal(await evaluate("api('/api/me').then(result=>result.user.id)"),anotherGuest.id);
   assert.deepEqual(errors,[]);console.log('PASS navegador: artes, cadastro simplificado, convidados, modos, fila em Treinos, heartbeat, retomada, 2 × 2 real, busca rápida 5 × 5, GPS fora de PE e responsividade.');console.log('Capturas em tmp/futstreet-v2-qa');
  }finally{ws?.close();chrome.kill();server.kill()}
 }

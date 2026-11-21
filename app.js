@@ -23,7 +23,9 @@ const authTabs = [...document.querySelectorAll('[data-auth-tab]')];
 const authForms = [...document.querySelectorAll('.auth-form')];
 const registerForm = document.querySelector('#register-form');
 const guestButton = document.querySelector('#guest-button');
-const authActions = [...authScreen.querySelectorAll('[data-auth-tab], [type="submit"], #guest-button')];
+const resumePanel = document.querySelector('#auth-resume');
+const resumeButton = document.querySelector('#auth-resume-button');
+const authActions = [...authScreen.querySelectorAll('[data-auth-tab], [type="submit"], #guest-button, #auth-resume-button')];
 // Keep existing logins when changing the brand. Database identifiers remain stable too.
 for (const key of ['token','session']) { const previous=localStorage.getItem('bastreet-'+key); if(previous&&!localStorage.getItem('futstreet-'+key))localStorage.setItem('futstreet-'+key,previous); localStorage.removeItem('bastreet-'+key); }
 const apiToken = () => localStorage.getItem('futstreet-token') || '';
@@ -38,7 +40,11 @@ async function api(path, options = {}) {
     if (localPreview) throw new Error('Abra http://localhost:4173 para entrar ou criar sua conta. Esta prévia não oferece cadastro.');
     throw new Error('O servidor respondeu em um formato inválido. Atualize a página e tente novamente.');
   }
-  if (!response.ok) throw new Error(result.error || 'Não foi possível concluir.');
+  if (!response.ok) {
+    const error = new Error(result.error || 'Não foi possível concluir.');
+    error.status = response.status;
+    throw error;
+  }
   return result;
 }
 
@@ -55,7 +61,7 @@ function setAuthTab(tab) {
   if (!email.value) email.value = previousEmail;
   document.querySelector('#auth-title').textContent = registering ? 'Crie sua conta' : 'Entre no jogo';
   document.querySelector('#auth-description').textContent = registering
-    ? 'Preencha os três campos para começar a jogar.' : 'Acesse sua conta do Futstreet.';
+    ? 'Preencha os três campos para começar a jogar.' : 'Entre com sua conta ou teste como convidado.';
 }
 
 function validateAuthField(field) {
@@ -96,6 +102,7 @@ async function submitAuth(form, button, action, payload) {
   try {
     const result = await api(`/api/auth/${action}`, {method:'POST',body:JSON.stringify(payload)});
     localStorage.setItem('futstreet-token', result.token);
+    resumePanel.hidden = true;
     form.elements.namedItem('password').value = '';
     enterApp(action === 'register' ? 'Conta criada. Bora jogar!' : `Bem-vindo, ${result.user.name}!`);
     applyUser(result.user);
@@ -167,7 +174,29 @@ document.querySelectorAll('.toggle-password').forEach(button => button.addEventL
 }));
 document.querySelector('#logout-button').addEventListener('click', () => { if(searchingState&&!searchingState.hidden)api('/api/matchmaking/leave',{method:'POST'}).catch(()=>{});closeMatchmaking(false);localStorage.removeItem('futstreet-session'); localStorage.removeItem('futstreet-token'); authScreen.hidden = false; setAuthTab('login');clearInterval(workoutTimer);activeWorkout=null; });
 document.querySelector('#brand-home').addEventListener('click', event => { event.preventDefault(); showPage('inicio'); history.replaceState(null, '', '#inicio'); });
-if (apiToken()) { authScreen.hidden = true; api('/api/me').then(result=>applyUser(result.user,result.stats)).catch(()=>{localStorage.removeItem('futstreet-token');authScreen.hidden=false}); }
+async function restoreSession() {
+  const token = apiToken();
+  if (!token || resumeButton.disabled) return;
+  authScreen.hidden = true;
+  authActions.forEach(control => control.disabled = true);
+  try {
+    const result = await api('/api/me', {signal: AbortSignal.timeout(10000)});
+    resumePanel.hidden = true;
+    applyUser(result.user, result.stats);
+  } catch (error) {
+    const sessionExpired = error.status === 401;
+    if (sessionExpired) {
+      localStorage.removeItem('futstreet-token');
+      localStorage.removeItem('futstreet-session');
+    }
+    resumePanel.hidden = sessionExpired;
+    authScreen.hidden = false;
+  } finally {
+    authActions.forEach(control => control.disabled = false);
+  }
+}
+resumeButton.addEventListener('click', restoreSession);
+if (apiToken()) restoreSession();
 
 function applyUser(user,stats){
   ownUserId=user.id;
